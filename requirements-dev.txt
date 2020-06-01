@@ -1,0 +1,10 @@
+.
+dns-lexicon[full]
+nose
+pycodestyle==2.5.0
+pyflakes==2.2.0
+coverage
+mock
+requests_mock
+twine==1.15.0
+
