@@ -2,6 +2,7 @@
 
 import setuptools
 
+
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
@@ -14,7 +15,7 @@ setuptools.setup(name='octodns_lexicon',
       long_description=long_description,
       long_description_content_type="text/markdown",
       license='MIT',
-      packages=['octodns_lexicon'],
+      py_modules=["octodns_lexicon"],
       classifiers=[
             'Intended Audience :: Developers',
             'Intended Audience :: System Administrators',
@@ -23,6 +24,7 @@ setuptools.setup(name='octodns_lexicon',
             'Topic :: System :: Systems Administration',
             'Topic :: Utilities',
             "License :: OSI Approved :: MIT License",
+            'Programming Language :: Python :: 2.7',
             'Programming Language :: Python :: 3',
         ],
       test_suite='nose.collector',
