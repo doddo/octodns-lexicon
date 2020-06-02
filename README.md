@@ -7,6 +7,14 @@ Use Lexicon providers in OctoDNS
 octodns_lexicon is a provider for OctoDNS which by acting as a wrapper, it lets you to use [Lexion](https://github.com/AnalogJ/lexicon) providers in [OctoDNS](https://github.com/github/octodns) and thus you can manage your DNS records as code across even more providers.
 
 ## Getting started
+
+### Extra dependencies
+
+Some providers has extra dependencies. These are not installed by default.
+
+See [here](https://github.com/AnalogJ/lexicon#setup) for instructions on how to install extra dependencies for such providers.
+
+
 ### Config
 From OctoDNS, this provider can be [configured](https://github.com/github/octodns#config) pretty much like any other, 
 
@@ -16,7 +24,6 @@ From OctoDNS, this provider can be [configured](https://github.com/github/octodn
 * `lexicon_config`: lexicon config. This dictionary gets sent staight into the wrapped Lexicon provider as a [DictConfigSource](https://github.com/AnalogJ/lexicon/blob/master/lexicon/config.py#L269)
 
 Furthermore: this provider also uses the Lexicon [EnvironmentConfigSource](https://github.com/AnalogJ/lexicon/blob/57a90f2c2992cb7c68371e05fb6d361c4b076374/lexicon/config.py#L217), so that you can put your lexicon dns providers settings into environment variables, just like in Lexicon.
-
 
 
 #### Example Configuration
