@@ -3,7 +3,7 @@ from unittest import TestCase
 import mock
 from mock import Mock
 
-from octodns_lexicon.lexicon import \
+from octodns_lexicon import \
     LexiconProvider, OnTheFlyLexiconConfigSource
 from octodns.provider.plan import Plan
 from octodns.record import Record, Create, Delete, Update
