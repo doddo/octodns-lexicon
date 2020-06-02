@@ -14,6 +14,7 @@ from lexicon.config import ConfigResolver as LexiconConfigResolver, \
 from octodns.provider.base import BaseProvider
 from octodns.record import Record
 
+__version__ = "0.1"
 
 class LexiconProvider(BaseProvider):
     """
