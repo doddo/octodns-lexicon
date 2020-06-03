@@ -1,3 +1,4 @@
+[![PyPi](https://img.shields.io/pypi/v/octodns_lexicon.svg)](https://pypi.org/project/octodns-lexicon/)
 [![Build Status](https://travis-ci.org/doddo/octodns-lexicon.svg?branch=master)](https://travis-ci.org/doddo/octodns-lexicon)
 
 # octodns-lexicon
