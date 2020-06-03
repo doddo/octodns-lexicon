@@ -1,11 +1,16 @@
 language: python
 python:
-  - "2.7"
-  - "3.8"
-# command to install dependencies
+- '2.7'
+- '3.8'
 install:
-  - pip install -r requirements-dev.txt
-# command to run tests
+- pip install -r requirements-dev.txt
 script:
-  - pytest
-  - flake8 *.py
+- pytest
+- flake8 *.py
+deploy:
+  provider: pypi
+  username: __token__
+  password:
+    secure: HAcbCNEqBPuRyxwY2tNXN3PbCxZz5WDCyOEqYkdNoUqrXLTTWRAvn7LnxT/D7NsrUgqtCJys5fYsNdZamLDfgCH3WfEQ6PvHyYmYj5raxRDz2bT5sDzG0uUdDhql31dKugiesA6zFQwH71wb9Tf31ngAoqB3SKYGt7QlOwXota1Uc6pDWFvtdoxsrKFgudhF4KqbWAKZPy0oT7xYg+qo82pe8X5lsnHq9fAiPA//qSyvsgBbAx+7a86uGXEFnHH+5B2KLFzWDnN4u/UzO1fjwl0I+4LXfazO8LWzgLLl45wZJu4iG+gSM9wg88Tavc3qx9DH7L71Qh2DJPmQet97Ju2MSxmoeJmVdc78iRicoOscbSw4cOwGTz+CoUzT+hdm33U7JzZMe3lXAQ8ChVu6BQRu5zKW16mR3TGmr4+7J2zucDCfnzX6AbON9H90Irv1LSNZSeTqIlDz85HJ3pyUkODAcYkcdN0swUvi2C+yZFtTJ8cd8eZwt4xaADz0ut5yrqj7VswhGOk188H723fK5K1Z5bWiYutUBbIcn0i2R2o+8llrpy9gGR65yqNUonMcqQOaifXECCzphDsZjr8imQh7aujH6B1P8ichxBFpTaZ45DOX4G0IC8bjXdGbdZER86YwE/DNMLJTdfyMzYPNsdf3SoiEnVNY0vXMK0E+z40=
+  on:
+    tags: true
