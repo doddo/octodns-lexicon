@@ -16,6 +16,7 @@ from octodns.record import Record
 
 __version__ = "0.1"
 
+
 class LexiconProvider(BaseProvider):
     """
     Wrapper to handle LexiconProviders in octodns
