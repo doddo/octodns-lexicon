@@ -8,7 +8,10 @@ Use Lexicon providers in OctoDNS
 octodns_lexicon is a provider for OctoDNS which by acting as a wrapper, it lets you to use [Lexion](https://github.com/AnalogJ/lexicon) providers in [OctoDNS](https://github.com/github/octodns) and thus you can manage your DNS records as code across even more providers.
 
 ## Getting started
+### Installation
 
+    pip install octodns-lexicon
+    
 ### Extra dependencies
 
 Some providers has extra dependencies. These are not installed by default.
@@ -29,26 +32,26 @@ Furthermore: this provider also uses the Lexicon [EnvironmentConfigSource](https
 
 #### Example Configuration
 ```yaml
- provider:
-     gandi:
-         class: octodns_lexicon.LexiconProvider
-         lexicon_config:
-             provider_name: gandi
-             domain: blodapels.in
-             gandi:
-                 auth_token: "better kept in environment variable"
-                 api_protocol: rest
-                 
-      namecheap:
-          class: octodns_provider.LexiconProvider
-          lexicon_config:
-              provider_name: namecheap
-              domain: example.com
-              namecheap:
-                  auth_sandbox: True
-                  auth_username: foobar
-                  auth_client_ip: 127.0.0.1
-                  auth_token: "better kept in environment variable"
+providers:
+  gandi:
+    class: octodns_lexicon.LexiconProvider
+    lexicon_config:
+      provider_name: gandi
+      domain: blodapels.in
+      gandi:
+        auth_token: "better kept in environment variable"
+        api_protocol: rest
+
+    namecheap:
+      class: octodns_lexicon.LexiconProvider
+      lexicon_config:
+        provider_name: namecheap
+        domain: example.com
+        namecheap:
+          auth_sandbox: True
+          auth_username: foobar
+          auth_client_ip: 127.0.0.1
+          auth_token: "better kept in environment variable"
 ```
 
 ### Some words of caution.
@@ -62,6 +65,12 @@ Because of the sheer amount of providers available for Lexicon, it is very hard 
 A good test case can be creating a multi-value A record (or whichever, really), and then to applying it with OctoDNS multiple times. Only the first run should apply any changes.
 
 Second step could be to change some of the values for that record, and maybe add one or two values, but keep some intact, and then change TTL and apply that a couple of times. Only the first run should apply any changes.
+
+#### On SRV, MX and other record typpes with multi-value values
+
+There are some inconsistencies in how lexicon providers handle these types of records. Some treats the additional value fields as extra options which they read from a Lexicon Config source while others handle them as single space separated value.
+
+This provider uses the latter case, ie multi value values are treated as one joined with spaces, as this seems to be the most common case. 
 
 #### On native OctoDNS providers
 
