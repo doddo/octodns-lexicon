@@ -362,20 +362,25 @@ class TestLexiconProviderApplyScenarios(TestCase):
             mock.call(content='192.168.1.3',
                       rtype='A',
                       name='test-many.blodapels.in.'),
+            mock.call().__bool__(),
             mock.call(content='192.168.1.4',
                       rtype='A',
                       name='test-many.blodapels.in.'),
+            mock.call().__bool__(),
             mock.call(content='192.168.7.7',
                       rtype='A',
-                      name='test-many.blodapels.in.')]
+                      name='test-many.blodapels.in.'),
+            mock.call().__bool__()]
 
         expected_calls_for_delete = [
             mock.call(content='192.168.2.3',
                       rtype='A',
                       name='test-many.blodapels.in.'),
+            mock.call().__bool__(),
             mock.call(content='192.168.2.4',
                       rtype='A',
-                      name='test-many.blodapels.in.')]
+                      name='test-many.blodapels.in.'),
+            mock.call().__bool__()]
 
         # When
         self.provider.populate(self.zone)
@@ -419,10 +424,12 @@ class TestLexiconProviderApplyScenarios(TestCase):
                                     content='192.168.1.3',
                                     rtype='A',
                                     name='test-many.blodapels.in.'),
+                          mock.call().__bool__(),
                           mock.call(identifier='747794',
                                     content='192.168.1.4',
                                     rtype='A',
-                                    name='test-many.blodapels.in.')]
+                                    name='test-many.blodapels.in.'),
+                          mock.call().__bool__()]
 
         # When
         self.provider.populate(self.zone)
