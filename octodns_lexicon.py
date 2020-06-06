@@ -201,32 +201,39 @@ class LexiconProvider(BaseProvider):
 
                     self.log.info('client update [id:{}] {!s}'.format(
                         identifier, new_record))
-                    self.lexicon_client.provider.update_record(
-                        identifier=identifier, **new_record.func_args())
+
+                    if not self.lexicon_client.provider.update_record(
+                            identifier=identifier, **new_record.func_args()):
+                        raise RecordUpdateError(new_record, identifier)
 
                 else:
                     self.log.info(
                         'client create_record {!s}'.format(new_record))
-                    self.lexicon_client.provider.create_record(
-                        **new_record.func_args())
+
+                    if not self.lexicon_client.provider.create_record(
+                            **new_record.func_args()):
+                        raise RecordCreateError(new_record)
 
                     self.log.info('client delete_record {!s}'.format(
                         old_record))
-                    self.lexicon_client.provider.delete_record(
-                        **old_record.func_args())
+                    if not self.lexicon_client.provider.delete_record(
+                            **old_record.func_args()):
+                        raise RecordDeleteError(old_record)
 
             for new_record in additions_iter:
                 self.log.info('client create_record {!s}'.format(new_record))
-                self.lexicon_client.provider.create_record(
-                    **new_record.func_args())
+                if not self.lexicon_client.provider.create_record(
+                        **new_record.func_args()):
+                    raise RecordCreateError(new_record)
 
             for old_record in deletions_iter:
                 self.log.info('client delete_record {!s}'.format(old_record))
                 identifier = self.remembered_ids.get(change.existing,
                                                      old_record.content)
 
-                self.lexicon_client.provider.delete_record(
-                    identifier=identifier, **old_record.func_args())
+                if not self.lexicon_client.provider.delete_record(
+                        identifier=identifier, **old_record.func_args()):
+                    raise RecordDeleteError(old_record)
 
     def _data_for_multiple(self, _type, lexicon_records):
         return {
@@ -410,3 +417,17 @@ class OnTheFlyLexiconConfigSource(LexiconConfigSource):
             return '*'
         else:
             return None
+
+
+class RecordUpdateError(RuntimeError):
+    def __init__(self, record, identifier=None):
+        msg = "Error handling record: {!s} id:{!s}".format(record, identifier)
+        super(RecordUpdateError, self).__init__(msg)
+
+
+class RecordDeleteError(RecordUpdateError):
+    pass
+
+
+class RecordCreateError(RecordUpdateError):
+    pass
