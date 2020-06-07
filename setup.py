@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name='octodns_lexicon',
-    version='0.1.dev1',
+    version='0.1.dev2',
     description='Lexicon provider for OctoDNS',
     url='http://github.com/doddo/octodns-lexiconprovider',
     author='Petter Hassberg',
