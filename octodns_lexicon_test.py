@@ -4,7 +4,7 @@ import mock
 from mock import Mock
 
 from octodns_lexicon import \
-    LexiconProvider, OnTheFlyLexiconConfigSource
+    LexiconProvider, OnTheFlyLexiconConfigSource, RecordUpdateError
 from octodns.provider.plan import Plan
 from octodns.record import Record, Create, Delete, Update
 from octodns.zone import Zone
@@ -64,7 +64,8 @@ OCTODNS_DATA = [
     Record.new(ZONE, 'webmail', {'ttl': 10800, 'type': 'CNAME', 'value':
                                  'webmail.example.com.'}, source=source),
     Record.new(ZONE, 'www', {'ttl': 10800, 'type': 'CNAME', 'value':
-                             'webredir.vip.example.com.'}, source=source),
+                                           'webredir.vip.example.com.'},
+               source=source),
     Record.new(ZONE, '_imap._tcp',
                {'type': 'SRV', 'ttl': 10800, 'values':
                    [{'priority': '0', 'weight': '0', 'port': '0',
@@ -218,6 +219,10 @@ class TestLexiconProviderApplyScenarios(TestCase):
 
         self.provider_mock = mock_provider.return_value
 
+        self.provider_mock.update_record.return_value = True
+        self.provider_mock.delete_record.return_value = True
+        self.provider_mock.create_record.return_value = True
+
     def test_apply_create_delete(self):
         # Given
         changeset = [Create(r) for r in OCTODNS_DATA]
@@ -362,25 +367,20 @@ class TestLexiconProviderApplyScenarios(TestCase):
             mock.call(content='192.168.1.3',
                       rtype='A',
                       name='test-many.blodapels.in.'),
-            mock.call().__bool__(),
             mock.call(content='192.168.1.4',
                       rtype='A',
                       name='test-many.blodapels.in.'),
-            mock.call().__bool__(),
             mock.call(content='192.168.7.7',
                       rtype='A',
-                      name='test-many.blodapels.in.'),
-            mock.call().__bool__()]
+                      name='test-many.blodapels.in.')]
 
         expected_calls_for_delete = [
             mock.call(content='192.168.2.3',
                       rtype='A',
                       name='test-many.blodapels.in.'),
-            mock.call().__bool__(),
             mock.call(content='192.168.2.4',
                       rtype='A',
-                      name='test-many.blodapels.in.'),
-            mock.call().__bool__()]
+                      name='test-many.blodapels.in.')]
 
         # When
         self.provider.populate(self.zone)
@@ -424,12 +424,10 @@ class TestLexiconProviderApplyScenarios(TestCase):
                                     content='192.168.1.3',
                                     rtype='A',
                                     name='test-many.blodapels.in.'),
-                          mock.call().__bool__(),
                           mock.call(identifier='747794',
                                     content='192.168.1.4',
                                     rtype='A',
-                                    name='test-many.blodapels.in.'),
-                          mock.call().__bool__()]
+                                    name='test-many.blodapels.in.')]
 
         # When
         self.provider.populate(self.zone)
@@ -440,3 +438,40 @@ class TestLexiconProviderApplyScenarios(TestCase):
         self.provider_mock.delete_record.assert_not_called()
         self.provider_mock.create_record.assert_called_once_with(
             content='192.168.7.7', rtype='A', name='test-many.blodapels.in.')
+
+    def test_apply_update_fail(self):
+        # Given
+        self.provider_mock.update_record.return_value = False
+
+        record_to_update_existing = Record.new(ZONE, 'multi-value-record',
+                                               {'ttl': 360,
+                                                'type': 'A',
+                                                'values':
+                                                   ['192.0.184.38']},
+                                               source=source)
+        record_to_update_new = Record.new(ZONE, 'multi-value-record',
+                                          {'ttl': 360,
+                                           'type': 'A',
+                                           'values':
+                                              ['92.0.3.0', '192.0.2.1']},
+                                          source=source)
+        lexicon_records = [r.to_list_format() for r in
+                           self.provider._rrset_for_A(
+                               record_to_update_existing)]
+        for r in lexicon_records:
+            r.update({'id': 'X'})
+
+        changeset = [Update(record_to_update_existing, record_to_update_new)]
+
+        # Given
+        self.provider.lexicon_client.provider.list_records.side_effect \
+            = lambda *s: iter(lexicon_records)
+
+        plan = Plan(ZONE, ZONE, changeset, True)
+
+        # When
+        self.provider.populate(zone=self.zone)
+
+        # Then
+        with self.assertRaises(RecordUpdateError):
+            self.provider._apply(plan)

@@ -117,8 +117,13 @@ class LexiconProvider(BaseProvider):
                     self.log.debug('populate: adding record {} records: {!s}'
                                    .format(record_by_name, data))
 
-                    #         # strip trailing period from fqdn if present
-                    #         record_name = record_name.rstrip('.')
+                    if record_by_name.endswith(zone.name):
+                        # This should be handled in the various
+                        # Lexicon providers.
+                        #  However, there is no harm in doing some extra
+                        #  check for it here  - just in case.
+                        record_by_name = record_by_name.rstrip('.')
+
                     if record_by_name.endswith(zone.name[:-1]):
                         record_name = record_by_name[:-(len(zone.name))]
                     else:
@@ -390,6 +395,11 @@ class RememberedIds:
 
 
 class LexiconRecord(namedtuple('LexiconRecord', 'content ttl rtype name')):
+
+    def to_list_format(self):
+        # function called is 'rtype' but list output of record names it 'rtype'
+        return {k if k != 'rtype' else 'type': v for k, v
+                in self._asdict().items()}
 
     def func_args(self):
         # TTL no argument for the functions.
