@@ -5,8 +5,9 @@ python:
 install:
 - pip install -r requirements-dev.txt
 script:
-- pytest
 - flake8 *.py
+- coverage run --source=octodns_lexicon -m pytest
+- coverage report -m --fail-under 100
 deploy:
   provider: pypi
   username: __token__

@@ -22,10 +22,11 @@ class LexiconProvider(BaseProvider):
     Wrapper to handle LexiconProviders in octodns
 
     lexicon:
-        class: octodns_lexicon.lexicon.LexiconProvicer
+        class: octodns_lexicon.LexiconProvicer
 
-        raise_on_unknown: if True, raise RuntimeError on unhandled record
-                        types (default false)
+        supports: list of record types to support (A, AAAA, CNAME ...)
+                intersects with:
+                    LexiconProvider.IMPLEMENTED
 
         lexicon_config: lexicon config
 
@@ -37,7 +38,7 @@ class LexiconProvider(BaseProvider):
 
         provider:
           gandi:
-            class: octodns_lexicon.lexicon.LexiconProvider
+            class: octodns_lexicon.LexiconProvider
             lexicon_config:
               provider_name: gandi
               domain: blodapels.in
@@ -57,22 +58,25 @@ class LexiconProvider(BaseProvider):
                 auth_token: "better kept in environment variable"
 
     """
-    SUPPORTS = {'A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
-                'PTR', 'SPF', 'SRV', 'SSHFP', 'TXT'}
+    IMPLEMENTED = {
+        'A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NS', 'SRV', 'TXT'}
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
 
-    def __init__(self, id, lexicon_config, raise_on_unhandled=False, **kwargs):
+    def __init__(self, id, lexicon_config, supports=None, **kwargs):
 
         self.log = logging.getLogger('LexiconProvider[{}]'.format(id))
+
+        self.SUPPORTS = self.IMPLEMENTED.intersection(
+            {s.upper() for s in supports}) if supports else self.IMPLEMENTED
+
         super(LexiconProvider, self).__init__(id, **kwargs)
 
         self.log.info('__init__: id=%s, token=***, account=%s', id, kwargs)
 
         self.remembered_ids = RememberedIds()
 
-        self.raise_on_unhandled = raise_on_unhandled
         config = LexiconConfigResolver()
         self.dynamic_config = OnTheFlyLexiconConfigSource()
 
@@ -117,8 +121,13 @@ class LexiconProvider(BaseProvider):
                     self.log.debug('populate: adding record {} records: {!s}'
                                    .format(record_by_name, data))
 
-                    #         # strip trailing period from fqdn if present
-                    #         record_name = record_name.rstrip('.')
+                    if record_by_name.endswith(zone.name):
+                        # This should be handled in the various
+                        # Lexicon providers.
+                        #  However, there is no harm in doing some extra
+                        #  check for it here  - just in case.
+                        record_by_name = record_by_name.rstrip('.')
+
                     if record_by_name.endswith(zone.name[:-1]):
                         record_name = record_by_name[:-(len(zone.name))]
                     else:
@@ -147,9 +156,6 @@ class LexiconProvider(BaseProvider):
                               '"{}" Payload was "{!s}"'.format(record_type,
                                                                lexicon_records)
                     self.log.warning(err_str)
-
-                    if self.raise_on_unhandled:
-                        raise RuntimeError(err_str)
 
         self.log.info('populate:   found %s records, exists=%s',
                       len(zone.records) - before, before < len(zone.records))
@@ -201,32 +207,39 @@ class LexiconProvider(BaseProvider):
 
                     self.log.info('client update [id:{}] {!s}'.format(
                         identifier, new_record))
-                    self.lexicon_client.provider.update_record(
-                        identifier=identifier, **new_record.func_args())
+
+                    if not self.lexicon_client.provider.update_record(
+                            identifier=identifier, **new_record.func_args()):
+                        raise RecordUpdateError(new_record, identifier)
 
                 else:
                     self.log.info(
                         'client create_record {!s}'.format(new_record))
-                    self.lexicon_client.provider.create_record(
-                        **new_record.func_args())
+
+                    if not self.lexicon_client.provider.create_record(
+                            **new_record.func_args()):
+                        raise RecordCreateError(new_record)
 
                     self.log.info('client delete_record {!s}'.format(
                         old_record))
-                    self.lexicon_client.provider.delete_record(
-                        **old_record.func_args())
+                    if not self.lexicon_client.provider.delete_record(
+                            **old_record.func_args()):
+                        raise RecordDeleteError(old_record)
 
             for new_record in additions_iter:
                 self.log.info('client create_record {!s}'.format(new_record))
-                self.lexicon_client.provider.create_record(
-                    **new_record.func_args())
+                if not self.lexicon_client.provider.create_record(
+                        **new_record.func_args()):
+                    raise RecordCreateError(new_record)
 
             for old_record in deletions_iter:
                 self.log.info('client delete_record {!s}'.format(old_record))
                 identifier = self.remembered_ids.get(change.existing,
                                                      old_record.content)
 
-                self.lexicon_client.provider.delete_record(
-                    identifier=identifier, **old_record.func_args())
+                if not self.lexicon_client.provider.delete_record(
+                        identifier=identifier, **old_record.func_args()):
+                    raise RecordDeleteError(old_record)
 
     def _data_for_multiple(self, _type, lexicon_records):
         return {
@@ -384,6 +397,11 @@ class RememberedIds:
 
 class LexiconRecord(namedtuple('LexiconRecord', 'content ttl rtype name')):
 
+    def to_list_format(self):
+        # function called is 'rtype' but list output of record names it 'type'
+        return {k if k != 'rtype' else 'type': v for k, v
+                in self._asdict().items()}
+
     def func_args(self):
         # TTL no argument for the functions.
         return {k: getattr(self, k) for k in ['content', 'rtype', 'name']}
@@ -410,3 +428,17 @@ class OnTheFlyLexiconConfigSource(LexiconConfigSource):
             return '*'
         else:
             return None
+
+
+class RecordUpdateError(RuntimeError):
+    def __init__(self, record, identifier=None):
+        msg = "Error handling record: {!s} id:{!s}".format(record, identifier)
+        super(RecordUpdateError, self).__init__(msg)
+
+
+class RecordDeleteError(RecordUpdateError):
+    pass
+
+
+class RecordCreateError(RecordUpdateError):
+    pass

@@ -3,11 +3,14 @@ from unittest import TestCase
 import mock
 from mock import Mock
 
-from octodns_lexicon import \
-    LexiconProvider, OnTheFlyLexiconConfigSource
 from octodns.provider.plan import Plan
 from octodns.record import Record, Create, Delete, Update
 from octodns.zone import Zone
+
+from octodns_lexicon import \
+    LexiconProvider, OnTheFlyLexiconConfigSource, RecordUpdateError,\
+    RecordCreateError, RecordDeleteError
+
 
 LEXICON_DATA = [
     {'type': 'A', 'name': '@.blodapels.in', 'ttl': 10800, 'content':
@@ -53,7 +56,7 @@ OCTODNS_DATA = [
                            'values': ['192.0.184.38']}, source=source),
     Record.new(ZONE, '@', {'ttl': 10800, 'type': 'MX',
                            'values': [{'priority': '10', 'exchange':
-                                      'spool.mail.example.com.'},
+                               'spool.mail.example.com.'},
                                       {'priority': '50', 'exchange':
                                           'fb.mail.example.com.'}]},
                source=source),
@@ -62,9 +65,10 @@ OCTODNS_DATA = [
                                ['v=spf1 include:_mailcust.example.com ?all']},
                source=source),
     Record.new(ZONE, 'webmail', {'ttl': 10800, 'type': 'CNAME', 'value':
-                                 'webmail.example.com.'}, source=source),
+        'webmail.example.com.'}, source=source),
     Record.new(ZONE, 'www', {'ttl': 10800, 'type': 'CNAME', 'value':
-                             'webredir.vip.example.com.'}, source=source),
+        'webredir.vip.example.com.'},
+               source=source),
     Record.new(ZONE, '_imap._tcp',
                {'type': 'SRV', 'ttl': 10800, 'values':
                    [{'priority': '0', 'weight': '0', 'port': '0',
@@ -123,20 +127,6 @@ class TestLexiconProvider(TestCase):
         self.assertTrue(mock_provider.called, "authenticate was called")
 
     @mock.patch('lexicon.providers.gandi.Provider')
-    def test_populate_crash_on_unknown(self, _):
-        # Given
-        provider = LexiconProvider(id="unittests",
-                                   raise_on_unhandled=True,
-                                   lexicon_config=lexicon_config)
-        zone = Zone("blodapels.in.", [])
-
-        provider.lexicon_client.provider.list_records.side_effect \
-            = lambda *s: iter(LEXICON_DATA)
-
-        with self.assertRaises(RuntimeError):
-            provider.populate(zone=zone)
-
-    @mock.patch('lexicon.providers.gandi.Provider')
     def test_populate_with_relative_name(self, _):
         # Given
         lexicon_data = [{'type': 'A',
@@ -165,6 +155,19 @@ class TestLexiconProvider(TestCase):
     def test_invalid_config(self):
         with self.assertRaises(AttributeError):
             LexiconProvider(id="unittests", lexicon_config={})
+
+    def test_config_supports(self):
+        provider_a = LexiconProvider(id="unittest",
+                                     lexicon_config=lexicon_config,
+                                     supports='A')
+        provider_all = LexiconProvider(id="unittest",
+                                       lexicon_config=lexicon_config,
+                                       supports=None)
+
+        self.assertEqual(provider_a.SUPPORTS, {'A'},
+                         "Filter supported record types works")
+        self.assertEqual(provider_all.SUPPORTS, provider_all.IMPLEMENTED,
+                         "Support all IMPLEMENTED providers by default")
 
     def test_config_resolver(self):
         # Given
@@ -217,6 +220,10 @@ class TestLexiconProviderApplyScenarios(TestCase):
                                                  '192.168.2.3']})
 
         self.provider_mock = mock_provider.return_value
+
+        self.provider_mock.update_record.return_value = True
+        self.provider_mock.delete_record.return_value = True
+        self.provider_mock.create_record.return_value = True
 
     def test_apply_create_delete(self):
         # Given
@@ -433,3 +440,112 @@ class TestLexiconProviderApplyScenarios(TestCase):
         self.provider_mock.delete_record.assert_not_called()
         self.provider_mock.create_record.assert_called_once_with(
             content='192.168.7.7', rtype='A', name='test-many.blodapels.in.')
+
+    def test_apply_update_fail(self):
+        # Given
+        self.provider_mock.update_record.return_value = False
+
+        record_to_update_existing = Record.new(ZONE, 'multi-value-record',
+                                               {'ttl': 360,
+                                                'type': 'A',
+                                                'values':
+                                                    ['192.0.184.38']},
+                                               source=source)
+        record_to_update_new = Record.new(ZONE, 'multi-value-record',
+                                          {'ttl': 360,
+                                           'type': 'A',
+                                           'values':
+                                               ['92.0.3.0', '192.0.2.1']},
+                                          source=source)
+        lexicon_records = [r.to_list_format() for r in
+                           self.provider._rrset_for_A(
+                               record_to_update_existing)]
+        for r in lexicon_records:
+            r.update({'id': 'X'})
+
+        changeset = [Update(record_to_update_existing, record_to_update_new)]
+
+        # Given
+        self.provider.lexicon_client.provider.list_records.side_effect \
+            = lambda *s: iter(lexicon_records)
+
+        plan = Plan(ZONE, ZONE, changeset, True)
+
+        # When
+        self.provider.populate(zone=self.zone)
+
+        # Then
+        with self.assertRaises(RecordUpdateError):
+            self.provider._apply(plan)
+
+    def test_apply_create_delete_fail(self):
+        # Given
+        record_to_update_existing = Record.new(
+            ZONE, 'multi-value-record',
+            {'ttl': 360,
+             'type': 'A',
+             'values':
+                 ['192.0.184.38']},
+            source=source)
+
+        record_to_update_new = Record.new(
+            ZONE, 'multi-value-record',
+            {'ttl': 360,
+             'type': 'A',
+             'values':
+                 ['92.0.3.0', '192.0.2.1']},
+            source=source)
+
+        changeset = [Update(record_to_update_existing, record_to_update_new)]
+
+        plan = Plan(ZONE, ZONE, changeset, True)
+
+        # Then
+        self.provider_mock.create_record.return_value = False
+        self.provider_mock.delete_record.return_value = True
+
+        with self.assertRaises(RecordCreateError):
+            self.provider._apply(plan)
+
+        self.provider_mock.create_record.return_value = True
+        self.provider_mock.delete_record.return_value = False
+
+        with self.assertRaises(RecordDeleteError):
+            self.provider._apply(plan)
+
+    def test_apply_create_error(self):
+        # Given
+        record_to_update_new = Record.new(
+            ZONE, 'multi-value-record',
+            {'ttl': 360,
+             'type': 'A',
+             'values':
+                 ['92.0.3.0', '192.0.2.1']},
+            source=source)
+
+        changeset = [Create(record_to_update_new)]
+        self.provider_mock.create_record.return_value = False
+
+        plan = Plan(ZONE, ZONE, changeset, True)
+
+        # Then
+        with self.assertRaises(RecordCreateError):
+            self.provider._apply(plan)
+
+    def test_apply_delete_error(self):
+        # Given
+        record_to_delete = Record.new(ZONE, 'multi-value-record',
+                                      {'ttl': 360,
+                                       'type': 'A',
+                                       'values':
+                                           ['92.0.3.0', '192.0.2.1']},
+                                      source=source)
+
+        changeset = [Delete(record_to_delete)]
+        self.provider_mock.delete_record.return_value = False
+
+        plan = Plan(ZONE, ZONE, changeset, True)
+
+        # Then
+        with self.assertRaises(RecordDeleteError):
+            self.provider._apply(plan)
