@@ -22,10 +22,11 @@ class LexiconProvider(BaseProvider):
     Wrapper to handle LexiconProviders in octodns
 
     lexicon:
-        class: octodns_lexicon.lexicon.LexiconProvicer
+        class: octodns_lexicon.LexiconProvicer
 
-        raise_on_unknown: if True, raise RuntimeError on unhandled record
-                        types (default false)
+        supports: list of record types to support (A, AAAA, CNAME ...)
+                intersects with:
+                    LexiconProvider.IMPLEMENTED
 
         lexicon_config: lexicon config
 
@@ -37,7 +38,7 @@ class LexiconProvider(BaseProvider):
 
         provider:
           gandi:
-            class: octodns_lexicon.lexicon.LexiconProvider
+            class: octodns_lexicon.LexiconProvider
             lexicon_config:
               provider_name: gandi
               domain: blodapels.in
@@ -57,22 +58,25 @@ class LexiconProvider(BaseProvider):
                 auth_token: "better kept in environment variable"
 
     """
-    SUPPORTS = {'A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NAPTR', 'NS',
-                'PTR', 'SPF', 'SRV', 'SSHFP', 'TXT'}
+    IMPLEMENTED = {
+        'A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NS', 'SRV', 'TXT'}
 
     SUPPORTS_GEO = False
     SUPPORTS_DYNAMIC = False
 
-    def __init__(self, id, lexicon_config, raise_on_unhandled=False, **kwargs):
+    def __init__(self, id, lexicon_config, supports=None, **kwargs):
 
         self.log = logging.getLogger('LexiconProvider[{}]'.format(id))
+
+        self.SUPPORTS = self.IMPLEMENTED.intersection(
+            {s.upper() for s in supports}) if supports else self.IMPLEMENTED
+
         super(LexiconProvider, self).__init__(id, **kwargs)
 
         self.log.info('__init__: id=%s, token=***, account=%s', id, kwargs)
 
         self.remembered_ids = RememberedIds()
 
-        self.raise_on_unhandled = raise_on_unhandled
         config = LexiconConfigResolver()
         self.dynamic_config = OnTheFlyLexiconConfigSource()
 
@@ -152,9 +156,6 @@ class LexiconProvider(BaseProvider):
                               '"{}" Payload was "{!s}"'.format(record_type,
                                                                lexicon_records)
                     self.log.warning(err_str)
-
-                    if self.raise_on_unhandled:
-                        raise RuntimeError(err_str)
 
         self.log.info('populate:   found %s records, exists=%s',
                       len(zone.records) - before, before < len(zone.records))
@@ -397,7 +398,7 @@ class RememberedIds:
 class LexiconRecord(namedtuple('LexiconRecord', 'content ttl rtype name')):
 
     def to_list_format(self):
-        # function called is 'rtype' but list output of record names it 'rtype'
+        # function called is 'rtype' but list output of record names it 'type'
         return {k if k != 'rtype' else 'type': v for k, v
                 in self._asdict().items()}
 
