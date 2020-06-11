@@ -8,9 +8,8 @@ from octodns.record import Record, Create, Delete, Update
 from octodns.zone import Zone
 
 from octodns_lexicon import \
-    LexiconProvider, OnTheFlyLexiconConfigSource, RecordUpdateError,\
+    LexiconProvider, OnTheFlyLexiconConfigSource, RecordUpdateError, \
     RecordCreateError, RecordDeleteError
-
 
 LEXICON_DATA = [
     {'type': 'A', 'name': '@.blodapels.in', 'ttl': 10800, 'content':
@@ -151,6 +150,36 @@ class TestLexiconProvider(TestCase):
         # Then
         self.assertEqual(zone.records, {expected_record},
                          "relative names from list are handled correctly")
+
+    @mock.patch('lexicon.providers.gandi.Provider')
+    def test_populate_non_fqdn_like_values(self, _):
+        # Given
+        lexicon_data = [{'type': 'NS',
+                         'name': 'subzone',
+                         'ttl': 10800,
+                         'content': 'subzone.example.com',
+                         'id': '@'},
+                        {'type': 'NS',
+                         'name': 'subzone',
+                         'ttl': 10800,
+                         'content': 'relative',
+                         'id': '@'}]
+
+        provider = LexiconProvider(id="unittests",
+                                   lexicon_config=lexicon_config)
+        zone = Zone("blodapels.in.", [])
+
+        provider.lexicon_client.provider.list_records.side_effect \
+            = lambda *s: iter(lexicon_data)
+
+        wanted_record_values = {'subzone.example.com.',
+                                'relative.blodapels.in.'}
+        # When
+        provider.populate(zone)
+
+        # Then
+        self.assertEqual(set(zone.records.pop().values),
+                         wanted_record_values, "out of zone record parsed OK")
 
     def test_invalid_config(self):
         with self.assertRaises(AttributeError):
