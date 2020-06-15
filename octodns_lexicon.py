@@ -76,28 +76,17 @@ class LexiconProvider(BaseProvider):
         self.log.info('__init__: id=%s, token=***, account=%s', id, kwargs)
 
         self.remembered_ids = RememberedIds()
-
-        config = LexiconConfigResolver()
-        self.dynamic_config = OnTheFlyLexiconConfigSource()
-
-        config.with_config_source(self.dynamic_config) \
-            .with_env().with_dict(lexicon_config)
-
-        try:
-            self.lexicon_client = LexiconClient(config)
-        except AttributeError as e:
-            self.log.error('Unable to parse config {!s}'.format(config))
-            raise e
+        self.lexicon_config = lexicon_config
 
     def populate(self, zone, target=False, lenient=False):
 
         loaded_types = defaultdict(lambda: defaultdict(list))
         before = len(zone.records)
-
+        lexicon_client, _ = self._create_client(zone_name=zone.name[:-1])
         exists = False
 
-        self.lexicon_client.provider.authenticate()
-        for lexicon_record in self.lexicon_client.provider.list_records(
+        lexicon_client.provider.authenticate()
+        for lexicon_record in lexicon_client.provider.list_records(
                 None, zone.name, None):
             # No way of knowing for sure whether a zone exists or not,
             # But if it has contents, it is safe to assume that it does.
@@ -162,6 +151,19 @@ class LexiconProvider(BaseProvider):
 
         return exists
 
+    def _create_client(self, zone_name):
+        config = LexiconConfigResolver()
+        dynamic_config = OnTheFlyLexiconConfigSource(zone_name)
+
+        config.with_config_source(dynamic_config) \
+            .with_env().with_dict(self.lexicon_config)
+
+        try:
+            return LexiconClient(config), dynamic_config
+        except AttributeError as e:
+            self.log.error('Unable to parse config {!s}'.format(config))
+            raise e
+
     def _apply(self, plan):
         """Required function of manager.py to actually apply a record change.
 
@@ -172,10 +174,12 @@ class LexiconProvider(BaseProvider):
         """
         desired = plan.desired
         changes = plan.changes
+        zone_name = plan.existing.name[:-1]
+        lexicon_client, dynamic_config = self._create_client(zone_name)
 
         self.log.debug('_apply: zone=%s, len(changes)=%d', desired.name,
                        len(changes))
-        self.lexicon_client.provider.authenticate()
+        lexicon_client.provider.authenticate()
 
         for change in changes:
             _rrset_func = getattr(
@@ -183,7 +187,7 @@ class LexiconProvider(BaseProvider):
 
             # Only way to update TTL is to hope that the provider shall read
             # this one for all operations
-            self.dynamic_config.set_ttl(change.record.ttl)
+            dynamic_config.set_ttl(change.record.ttl)
 
             old_vars = _rrset_func(change.existing) \
                 if change.existing else set()
@@ -208,7 +212,7 @@ class LexiconProvider(BaseProvider):
                     self.log.info('client update [id:{}] {!s}'.format(
                         identifier, new_record))
 
-                    if not self.lexicon_client.provider.update_record(
+                    if not lexicon_client.provider.update_record(
                             identifier=identifier, **new_record.func_args()):
                         raise RecordUpdateError(new_record, identifier)
 
@@ -216,19 +220,19 @@ class LexiconProvider(BaseProvider):
                     self.log.info(
                         'client create_record {!s}'.format(new_record))
 
-                    if not self.lexicon_client.provider.create_record(
+                    if not lexicon_client.provider.create_record(
                             **new_record.func_args()):
                         raise RecordCreateError(new_record)
 
                     self.log.info('client delete_record {!s}'.format(
                         old_record))
-                    if not self.lexicon_client.provider.delete_record(
+                    if not lexicon_client.provider.delete_record(
                             **old_record.func_args()):
                         raise RecordDeleteError(old_record)
 
             for new_record in additions_iter:
                 self.log.info('client create_record {!s}'.format(new_record))
-                if not self.lexicon_client.provider.create_record(
+                if not lexicon_client.provider.create_record(
                         **new_record.func_args()):
                     raise RecordCreateError(new_record)
 
@@ -237,7 +241,7 @@ class LexiconProvider(BaseProvider):
                 identifier = self.remembered_ids.get(change.existing,
                                                      old_record.content)
 
-                if not self.lexicon_client.provider.delete_record(
+                if not lexicon_client.provider.delete_record(
                         identifier=identifier, **old_record.func_args()):
                     raise RecordDeleteError(old_record)
 
@@ -409,9 +413,10 @@ class LexiconRecord(namedtuple('LexiconRecord', 'content ttl rtype name')):
 
 class OnTheFlyLexiconConfigSource(LexiconConfigSource):
 
-    def __init__(self, ttl=3600):
+    def __init__(self, domain, ttl=3600):
         super(OnTheFlyLexiconConfigSource, self).__init__()
         self.ttl = ttl
+        self.domain = domain
 
     def set_ttl(self, ttl):
         self.ttl = ttl
@@ -419,6 +424,8 @@ class OnTheFlyLexiconConfigSource(LexiconConfigSource):
     def resolve(self, config_key):
         if config_key == "lexicon:ttl":
             return self.ttl
+        elif config_key == 'lexicon:domain':
+            return self.domain
         # These two keys below are not used, because actions are handled in
         # _apply, The config needs to resolve, though, lest the config
         # validation will fail.
