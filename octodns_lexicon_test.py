@@ -109,15 +109,14 @@ lexicon_config = {
 
 class TestLexiconProvider(TestCase):
 
-    @mock.patch('lexicon.providers.gandi.Provider')
-    def test_populate(self, mock_provider):
+    @mock.patch('lexicon.providers.gandi.Provider.list_records',
+                return_value=iter(LEXICON_DATA))
+    @mock.patch('lexicon.providers.gandi.Provider.authenticate')
+    def test_populate(self, mock_provider, mock_auth):
         # Given
         provider = LexiconProvider(id="unittests",
                                    lexicon_config=lexicon_config)
         zone = Zone("blodapels.in.", [])
-
-        provider.lexicon_client.provider.list_records.side_effect \
-            = lambda *s: iter(LEXICON_DATA)
 
         # When
         provider.populate(zone=zone)
@@ -125,9 +124,10 @@ class TestLexiconProvider(TestCase):
         # Then
         self.assertEqual(zone.records, set(OCTODNS_DATA))
         self.assertTrue(mock_provider.called, "authenticate was called")
+        mock_auth.assert_called()
 
     @mock.patch('lexicon.providers.gandi.Provider')
-    def test_populate_with_relative_name(self, _):
+    def test_populate_with_relative_name(self, mock_provider):
         # Given
         lexicon_data = [{'type': 'A',
                          'name': '@',
@@ -142,8 +142,8 @@ class TestLexiconProvider(TestCase):
                                                  'values': ['192.0.184.38']},
                                      source=source)
 
-        provider.lexicon_client.provider.list_records.side_effect \
-            = lambda *s: iter(lexicon_data)
+        mock_provider.return_value.list_records.return_value =\
+            iter(lexicon_data)
 
         # When
         provider.populate(zone)
@@ -154,7 +154,8 @@ class TestLexiconProvider(TestCase):
 
     def test_invalid_config(self):
         with self.assertRaises(AttributeError):
-            LexiconProvider(id="unittests", lexicon_config={})
+            provider = LexiconProvider(id="unittests", lexicon_config={})
+            provider._create_client("example.com")
 
     def test_config_supports(self):
         provider_a = LexiconProvider(id="unittest",
@@ -171,12 +172,14 @@ class TestLexiconProvider(TestCase):
 
     def test_config_resolver(self):
         # Given
-        config_resolver = OnTheFlyLexiconConfigSource()
+        config_resolver = OnTheFlyLexiconConfigSource(domain="fiskppinne.")
 
         # When
         config_resolver.set_ttl(666)
 
         # Then
+        self.assertEqual(config_resolver.resolve("lexicon:domain"),
+                         'fiskppinne.')
         self.assertEqual(config_resolver.resolve("lexicon:ttl"), 666)
         self.assertEqual(config_resolver.resolve("lexicon:action"), "*")
         self.assertEqual(config_resolver.resolve("lexicon:type"), "*")
@@ -225,8 +228,10 @@ class TestLexiconProviderApplyScenarios(TestCase):
         self.provider_mock.delete_record.return_value = True
         self.provider_mock.create_record.return_value = True
 
-    def test_apply_create_delete(self):
+    @mock.patch('lexicon.providers.gandi.Provider')
+    def test_apply_create_delete(self, provider_mock):
         # Given
+        provider_mock.return_value = self.provider_mock
         changeset = [Create(r) for r in OCTODNS_DATA]
 
         record_to_del = Record.new(ZONE, 'unittest-del',
@@ -308,10 +313,13 @@ class TestLexiconProviderApplyScenarios(TestCase):
             name='unittest-del.blodapels.in.')
         self.provider_mock.update_record.assert_not_called()
 
-    def test__apply_many_to_one(self):
+    @mock.patch('lexicon.providers.gandi.Provider')
+    def test__apply_many_to_one(self, provider_mock):
         # Given
-        self.provider.lexicon_client.provider.list_records.side_effect \
-            = lambda *s: iter(self.lexicon_records_one_octo_record)
+        provider_mock.return_value = self.provider_mock
+
+        self.provider_mock.list_records.return_value =\
+            iter(self.lexicon_records_one_octo_record)
 
         octo_record = self.octo_record
 
@@ -345,10 +353,13 @@ class TestLexiconProviderApplyScenarios(TestCase):
         self.provider_mock.list_records. \
             assert_called_once_with(None, 'blodapels.in.', None)
 
-    def test_apply_many_to_one_without_unique_ids(self):
+    @mock.patch('lexicon.providers.gandi.Provider')
+    def test_apply_many_to_one_without_unique_ids(self, provider_mock):
         # Given
-        self.provider.lexicon_client.provider.list_records.side_effect \
-            = lambda *s: iter(self.lexicon_records_non_unique_ids)
+        provider_mock.return_value = self.provider_mock
+
+        self.provider_mock.list_records.return_value =\
+            iter(self.lexicon_records_non_unique_ids)
 
         desired_zone = Zone("blodapels.in.", [])
 
@@ -400,10 +411,13 @@ class TestLexiconProviderApplyScenarios(TestCase):
         self.assertEqual(self.provider_mock.delete_record.call_count, 2,
                          "Delete is called exactly twice")
 
-    def test_apply_update_mix(self):
+    @mock.patch('lexicon.providers.gandi.Provider')
+    def test_apply_update_mix(self, provider_mock):
         # given
-        self.provider.lexicon_client.provider.list_records.side_effect \
-            = lambda *s: iter(self.lexicon_records_one_octo_record)
+        provider_mock.return_value = self.provider_mock
+
+        self.provider_mock.list_records.return_value =\
+            iter(self.lexicon_records_one_octo_record)
 
         desired_zone = Zone("blodapels.in.", [])
 
@@ -441,10 +455,9 @@ class TestLexiconProviderApplyScenarios(TestCase):
         self.provider_mock.create_record.assert_called_once_with(
             content='192.168.7.7', rtype='A', name='test-many.blodapels.in.')
 
-    def test_apply_update_fail(self):
+    @mock.patch('lexicon.providers.gandi.Provider')
+    def test_apply_update_fail(self, provider_mock):
         # Given
-        self.provider_mock.update_record.return_value = False
-
         record_to_update_existing = Record.new(ZONE, 'multi-value-record',
                                                {'ttl': 360,
                                                 'type': 'A',
@@ -465,9 +478,10 @@ class TestLexiconProviderApplyScenarios(TestCase):
 
         changeset = [Update(record_to_update_existing, record_to_update_new)]
 
-        # Given
-        self.provider.lexicon_client.provider.list_records.side_effect \
-            = lambda *s: iter(lexicon_records)
+        provider_mock.return_value = self.provider_mock
+        self.provider_mock.update_record.return_value = False
+        self.provider_mock.list_records.return_value =\
+            iter(lexicon_records)
 
         plan = Plan(ZONE, ZONE, changeset, True)
 
@@ -478,8 +492,10 @@ class TestLexiconProviderApplyScenarios(TestCase):
         with self.assertRaises(RecordUpdateError):
             self.provider._apply(plan)
 
-    def test_apply_create_delete_fail(self):
+    @mock.patch('lexicon.providers.gandi.Provider')
+    def test_apply_create_delete_fail(self, provider_mock):
         # Given
+        provider_mock.return_value = self.provider_mock
         record_to_update_existing = Record.new(
             ZONE, 'multi-value-record',
             {'ttl': 360,
@@ -513,7 +529,8 @@ class TestLexiconProviderApplyScenarios(TestCase):
         with self.assertRaises(RecordDeleteError):
             self.provider._apply(plan)
 
-    def test_apply_create_error(self):
+    @mock.patch('lexicon.providers.gandi.Provider')
+    def test_apply_create_error(self, provider_mock):
         # Given
         record_to_update_new = Record.new(
             ZONE, 'multi-value-record',
@@ -524,7 +541,7 @@ class TestLexiconProviderApplyScenarios(TestCase):
             source=source)
 
         changeset = [Create(record_to_update_new)]
-        self.provider_mock.create_record.return_value = False
+        provider_mock.return_value.create_record.return_value = False
 
         plan = Plan(ZONE, ZONE, changeset, True)
 
@@ -532,7 +549,8 @@ class TestLexiconProviderApplyScenarios(TestCase):
         with self.assertRaises(RecordCreateError):
             self.provider._apply(plan)
 
-    def test_apply_delete_error(self):
+    @mock.patch('lexicon.providers.gandi.Provider')
+    def test_apply_delete_error(self, provider_mock):
         # Given
         record_to_delete = Record.new(ZONE, 'multi-value-record',
                                       {'ttl': 360,
@@ -542,7 +560,7 @@ class TestLexiconProviderApplyScenarios(TestCase):
                                       source=source)
 
         changeset = [Delete(record_to_delete)]
-        self.provider_mock.delete_record.return_value = False
+        provider_mock.return_value.delete_record.return_value = False
 
         plan = Plan(ZONE, ZONE, changeset, True)
 
