@@ -8,9 +8,8 @@ from octodns.record import Record, Create, Delete, Update
 from octodns.zone import Zone
 
 from octodns_lexicon import \
-    LexiconProvider, OnTheFlyLexiconConfigSource, RecordUpdateError,\
-    RecordCreateError, RecordDeleteError
-
+    LexiconProvider, OnTheFlyLexiconConfigSource, RecordUpdateError, \
+    RecordCreateError, RecordDeleteError, RememberedIds
 
 LEXICON_DATA = [
     {'type': 'A', 'name': '@.blodapels.in', 'ttl': 10800, 'content':
@@ -136,6 +135,7 @@ class TestLexiconProvider(TestCase):
                          'id': '@'}]
         provider = LexiconProvider(id="unittests",
                                    lexicon_config=lexicon_config)
+
         zone = Zone("blodapels.in.", [])
 
         expected_record = Record.new(ZONE, '@', {'ttl': 10800, 'type': 'A',
@@ -156,6 +156,27 @@ class TestLexiconProvider(TestCase):
         with self.assertRaises(AttributeError):
             provider = LexiconProvider(id="unittests", lexicon_config={})
             provider._create_client("example.com")
+
+    def test_octodns_record_compat(self):
+        # Given
+        remembered_ids = RememberedIds()
+        zone_a = Zone("zone-a.dev.", [])
+        zone_b = Zone("zone-b.dev.", [])
+        record_a = Record.new(zone_a, 'unittest',
+            {'ttl': 30, 'type': 'CNAME', 'value':
+                'www.example.com.'},
+            source=None)
+        record_b = Record.new(zone_b, 'unittest',
+            {'ttl': 30, 'type': 'CNAME', 'value':
+                'www.example.com.'},
+            source=None)
+
+        # When
+        remembered_ids.remember(record_a, "www.example.com", '@')
+
+        # Then
+        self.assertEqual(remembered_ids.get_all_ids(record_a), ['@'])
+        self.assertEqual(remembered_ids.get_all_ids(record_b), [])
 
     def test_config_supports(self):
         provider_a = LexiconProvider(id="unittest",

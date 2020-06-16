@@ -5,6 +5,8 @@
 
 import logging
 import shlex
+from threading import Lock
+
 from collections import defaultdict, namedtuple
 
 from lexicon.client import Client as LexiconClient
@@ -365,12 +367,14 @@ class LexiconProvider(BaseProvider):
 class RememberedIds:
 
     def __init__(self):
-        self.id_by_record_and_value = defaultdict(dict)
-        self.all_ids_for_record = defaultdict(list)
+        self.lock = Lock()
+        self._id_by_record_and_value = defaultdict(dict)
+        self._all_ids_for_record = defaultdict(list)
 
     def remember(self, record, content, _id):
-        self.id_by_record_and_value[record][content] = _id
-        self.all_ids_for_record[record].append(_id)
+        with self.lock:
+            self._id_by_record_and_value[repr(record)][content] = _id
+            self._all_ids_for_record[repr(record)].append(_id)
 
     def has_unique_ids(self, record):
         # We *want* to use update op when ever possible, because it is
@@ -389,14 +393,17 @@ class RememberedIds:
         # performed either if all the ids encountered are unique, or else
         # if there are only one value for that record present already, in
         # which case the id is unique simply by being the only one.
-        return len(self.all_ids_for_record[record]) == \
-            len(set(self.all_ids_for_record[record]))
+        return len(self._all_ids_for_record[repr(record)]) == \
+            len(set(self._all_ids_for_record[repr(record)]))
 
     def get(self, record, content):
         try:
-            return self.id_by_record_and_value[record][content]
+            return self._id_by_record_and_value[repr(record)][content]
         except KeyError:
             return None
+
+    def get_all_ids(self, record):
+        return self._all_ids_for_record[repr(record)]
 
 
 class LexiconRecord(namedtuple('LexiconRecord', 'content ttl rtype name')):
