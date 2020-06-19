@@ -95,6 +95,18 @@ class LexiconProvider(BaseProvider):
             exists = True
             self.log.debug("provider listed {!s}".format(lexicon_record))
 
+            # harmonize record values here
+            if lexicon_record['type'] in ['CNAME', 'MX', 'NS']:
+                if not lexicon_record['content'][:-1] == '.':
+                    domain_part = shlex.split(lexicon_record['content'])[-1]
+                    if '.' in domain_part:
+                        lexicon_record['content'] += '.'
+                    else:
+                        lexicon_record['content'] += ".{}".format(zone.name)
+
+                    self.log.info("Harmonizing [%s] -> [%s]",
+                                  domain_part, lexicon_record['content'])
+
             loaded_types[lexicon_record["name"]][lexicon_record["type"]] \
                 .append(lexicon_record)
 

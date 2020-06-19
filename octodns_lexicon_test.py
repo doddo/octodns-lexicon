@@ -152,6 +152,33 @@ class TestLexiconProvider(TestCase):
         self.assertEqual(zone.records, {expected_record},
                          "relative names from list are handled correctly")
 
+    @mock.patch('lexicon.providers.gandi.Provider.list_records',
+                return_value=iter([{'type': 'NS',
+                         'name': 'subzone',
+                         'ttl': 10800,
+                         'content': 'subzone.example.com',
+                         'id': '@'},
+                        {'type': 'NS',
+                         'name': 'subzone',
+                         'ttl': 10800,
+                         'content': 'relative',
+                         'id': '@'}]))
+    @mock.patch('lexicon.providers.gandi.Provider.authenticate')
+    def test_populate_non_fqdn_like_values(self, *_):
+        # Given
+        provider = LexiconProvider(id="unittests",
+                                   lexicon_config=lexicon_config)
+        zone = Zone("blodapels.in.", [])
+
+        wanted_record_values = {'subzone.example.com.',
+                                'relative.blodapels.in.'}
+        # When
+        provider.populate(zone)
+
+        # Then
+        self.assertEqual(set(zone.records.pop().values),
+                         wanted_record_values, "out of zone record parsed OK")
+
     def test_invalid_config(self):
         with self.assertRaises(AttributeError):
             provider = LexiconProvider(id="unittests", lexicon_config={})
