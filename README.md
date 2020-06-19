@@ -37,14 +37,14 @@ The mandatory Lexicon command args such like `domain` will be provided at runtim
 providers:
   gandi:
     class: octodns_lexicon.LexiconProvider
+    supports:
+      - A
+      - AAAA
+      - CNAME
+      - MX
+      - SRV
     lexicon_config:
       provider_name: gandi
-      supports:
-        - A
-        - AAAA
-        - CNAME
-        - MX
-        - SRV
       gandi:
         auth_token: "better kept in environment variable"
         api_protocol: rest
