@@ -24,7 +24,7 @@ See [here](https://github.com/AnalogJ/lexicon#setup) for instructions on how to 
 From OctoDNS, this provider can be [configured](https://github.com/github/octodns#config) pretty much like any other, 
 
 * `class`: `octodns_lexicon.LexiconProvider`
-* `supports`: if defined, will limit the scope of the implemented record types: `{'A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NS', 'SRV', 'TXT'}`
+* `supports`: if defined, will limit the scope of the implemented record types: `{'A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NS', 'SRV', 'TXT'}` (the *intersection* between implemented record types and provided list will be used)
 * `lexicon_config`: lexicon config. This dictionary gets sent straight into the wrapped Lexicon provider as a [DictConfigSource](https://github.com/AnalogJ/lexicon/blob/master/lexicon/config.py#L269)
 
 Furthermore: this provider also uses the Lexicon [EnvironmentConfigSource](https://github.com/AnalogJ/lexicon/blob/57a90f2c2992cb7c68371e05fb6d361c4b076374/lexicon/config.py#L217), so that you can put your lexicon dns providers settings into environment variables, just like in Lexicon.
@@ -49,24 +49,24 @@ providers:
         auth_token: "better kept in environment variable"
         api_protocol: rest
 
-    namecheap:
-      class: octodns_lexicon.LexiconProvider
-      lexicon_config:
-        provider_name: namecheap
-        namecheap:
-          auth_sandbox: True
-          auth_username: foobar
-          auth_client_ip: 127.0.0.1
-          auth_token: "better kept in environment variable"
+  namecheap:
+    class: octodns_lexicon.LexiconProvider
+    lexicon_config:
+      provider_name: namecheap
+      namecheap:
+        auth_sandbox: True
+        auth_username: foobar
+        auth_client_ip: 127.0.0.1
+        auth_token: "better kept in environment variable"
 ```
 ##### EnvironmentConfigSource
 
-So the `auth_token` fir namecheap provider above can be put in environment variable `LEXICON_NAMECHEAP_AUTH_TOKEN` and for gandi it'd be `LEXICON_GANDI_AUTH_TOKEN`.
+The `auth_token` for the namecheap provider in the example above could be put in environment variable `LEXICON_NAMECHEAP_AUTH_TOKEN` instead. (and for gandi it'd be `LEXICON_GANDI_AUTH_TOKEN`).
 
 
 #### Supported Record types
 
-Lexicon CLI handles the following record types: `'A', 'AAAA', 'CNAME', 'MX', 'NS', 'SOA', 'TXT', 'SRV', 'LOC']`. Of these `SOA` and `LOC` records have been omitted for various reasons and are not implemented. Instead, this provider has support for `CAA` records which seems to work well with most Lexicon providers.
+Lexicon CLI handles the following record types: `A`, `AAAA`, `CNAME`, `MX`, `NS`, `SOA`, `TXT`, `SRV` and `LOC`. Of these `SOA` and `LOC` records have been omitted for various reasons and are not implemented. Instead, this provider has support for `CAA` records which seems to work well with most Lexicon providers.
 
 The support for these above records varies between Lexicon providers, and they themselves do not indicate in standardized manner which of them would work. Therefore the operator can specify in `lexicon_config.supports` a subset of `{'A', 'AAAA', 'ALIAS', 'CAA', 'CNAME', 'MX', 'NS', 'SRV', 'TXT'}` and this provider will claim to support and try to apply that and nothing else, or leave blank to support the full set.
 
