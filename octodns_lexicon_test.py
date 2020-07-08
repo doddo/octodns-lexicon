@@ -399,7 +399,7 @@ class TestLexiconProviderApplyScenarios(TestCase):
 
         self.provider_mock.authenticate.assert_called_once_with()
         self.provider_mock.list_records. \
-            assert_called_once_with(None, 'blodapels.in.', None)
+            assert_called_once_with(None, None, None)
 
     @mock.patch('lexicon.providers.gandi.Provider')
     def test_apply_many_to_one_without_unique_ids(self, provider_mock):

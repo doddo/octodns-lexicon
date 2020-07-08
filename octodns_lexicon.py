@@ -89,7 +89,7 @@ class LexiconProvider(BaseProvider):
 
         lexicon_client.provider.authenticate()
         for lexicon_record in lexicon_client.provider.list_records(
-                None, zone.name, None):
+                None, None, None):
             # No way of knowing for sure whether a zone exists or not,
             # But if it has contents, it is safe to assume that it does.
             exists = True
@@ -97,7 +97,7 @@ class LexiconProvider(BaseProvider):
 
             # harmonize record values here
             if lexicon_record['type'] in ['CNAME', 'MX', 'NS']:
-                if not lexicon_record['content'][:-1] == '.':
+                if not lexicon_record['content'][-1] == '.':
                     domain_part = shlex.split(lexicon_record['content'])[-1]
                     if '.' in domain_part:
                         lexicon_record['content'] += '.'
