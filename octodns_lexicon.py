@@ -5,6 +5,7 @@
 
 import logging
 import shlex
+import re
 from threading import Lock
 
 from collections import defaultdict, namedtuple
@@ -263,7 +264,7 @@ class LexiconProvider(BaseProvider):
         return {
             'ttl': lexicon_records[0]['ttl'],
             'type': _type,
-            'values': [r['content'] for r in lexicon_records]
+            'values': [re.sub(';', '\;', r['content']) for r in lexicon_records]
         }
 
     def _data_for_CAA(self, _type, lexicon_records):
