@@ -19,6 +19,21 @@ from octodns.record import Record
 __version__ = "0.1.dev4"
 
 
+def _lexicon_fqdn(octodns_record):
+    if octodns_record.name == '':
+        return f'@.{octodns_record.fqdn}'
+    return octodns_record.fqdn
+
+
+def _octodns_name(lexicon_record):
+    name = lexicon_record['name']
+    if name.startswith('@.'):
+        return name.replace('@.', '')
+    elif name == '@':
+        return ''
+    return name
+
+
 class LexiconProvider(BaseProvider):
     """
     Wrapper to handle LexiconProviders in octodns
@@ -107,8 +122,8 @@ class LexiconProvider(BaseProvider):
                     self.log.info("Harmonizing [%s] -> [%s]",
                                   domain_part, lexicon_record['content'])
 
-            loaded_types[lexicon_record["name"]][lexicon_record["type"]] \
-                .append(lexicon_record)
+            name = _octodns_name(lexicon_record)
+            loaded_types[name][lexicon_record["type"]].append(lexicon_record)
 
         for record_by_name, data_by_id in loaded_types.items():
             for record_type, lexicon_records in data_by_id.items():
@@ -332,7 +347,7 @@ class LexiconProvider(BaseProvider):
         return {LexiconRecord(content=c,
                               ttl=octodns_record.ttl,
                               rtype=octodns_record._type,
-                              name=octodns_record.fqdn) for
+                              name=_lexicon_fqdn(octodns_record)) for
                 c in octodns_record.values}
 
     def _rrset_for_CAA(self, octodns_record):
@@ -340,20 +355,20 @@ class LexiconProvider(BaseProvider):
             content='{} {} "{}"'.format(c.flags, c.tag, c.value),
             ttl=octodns_record.ttl,
             rtype=octodns_record._type,
-            name=octodns_record.fqdn)
+            name=_lexicon_fqdn(octodns_record))
             for c in octodns_record.values}
 
     def _rrset_for_CNAME(self, octodns_record):
         return {LexiconRecord(content=octodns_record.value,
                               ttl=octodns_record.ttl,
                               rtype=octodns_record._type,
-                              name=octodns_record.fqdn)}
+                              name=_lexicon_fqdn(octodns_record))}
 
     def _rrset_for_MX(self, octodns_record):
         return {LexiconRecord(content='{} {}'.format(c.preference, c.exchange),
                               ttl=octodns_record.ttl,
                               rtype=octodns_record._type,
-                              name=octodns_record.fqdn)
+                              name=_lexicon_fqdn(octodns_record))
                 for c in octodns_record.values}
 
     def _rrset_for_SRV(self, octodns_record):
@@ -362,7 +377,7 @@ class LexiconProvider(BaseProvider):
                 c.priority, c.weight, c.port, c.target),
             ttl=octodns_record.ttl,
             rtype=octodns_record._type,
-            name=octodns_record.fqdn)
+            name=_lexicon_fqdn(octodns_record))
             for c in octodns_record.values}
 
     _rrset_for_A = _rrset_for_multiple
