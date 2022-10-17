@@ -27,7 +27,7 @@ setuptools.setup(
          'Programming Language :: Python :: 2.7',
          'Programming Language :: Python :: 3',
     ],
-    tests_require=["pytest", "mock"],
+    tests_require=["pytest"],
     install_requires=[
         'octodns>=0.9.10',
         'dns-lexicon>=3.3.23']

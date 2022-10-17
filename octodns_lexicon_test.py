@@ -1,7 +1,5 @@
 from unittest import TestCase
-
-import mock
-from mock import Mock
+from unittest.mock import Mock, call, patch
 
 from octodns.provider.plan import Plan
 from octodns.record import Record, Create, Delete, Update
@@ -108,9 +106,9 @@ lexicon_config = {
 
 class TestLexiconProvider(TestCase):
 
-    @mock.patch('lexicon.providers.gandi.Provider.list_records',
+    @patch('lexicon.providers.gandi.Provider.list_records',
                 return_value=iter(LEXICON_DATA))
-    @mock.patch('lexicon.providers.gandi.Provider.authenticate')
+    @patch('lexicon.providers.gandi.Provider.authenticate')
     def test_populate(self, mock_provider, mock_auth):
         # Given
         provider = LexiconProvider(id="unittests",
@@ -125,7 +123,7 @@ class TestLexiconProvider(TestCase):
         self.assertTrue(mock_provider.called, "authenticate was called")
         mock_auth.assert_called()
 
-    @mock.patch('lexicon.providers.gandi.Provider')
+    @patch('lexicon.providers.gandi.Provider')
     def test_populate_with_relative_name(self, mock_provider):
         # Given
         lexicon_data = [{'type': 'A',
@@ -152,7 +150,7 @@ class TestLexiconProvider(TestCase):
         self.assertEqual(zone.records, {expected_record},
                          "relative names from list are handled correctly")
 
-    @mock.patch('lexicon.providers.gandi.Provider.list_records',
+    @patch('lexicon.providers.gandi.Provider.list_records',
                 return_value=iter([{'type': 'NS',
                          'name': 'subzone',
                          'ttl': 10800,
@@ -163,7 +161,7 @@ class TestLexiconProvider(TestCase):
                          'ttl': 10800,
                          'content': 'relative',
                          'id': '@'}]))
-    @mock.patch('lexicon.providers.gandi.Provider.authenticate')
+    @patch('lexicon.providers.gandi.Provider.authenticate')
     def test_populate_non_fqdn_like_values(self, *_):
         # Given
         provider = LexiconProvider(id="unittests",
@@ -236,7 +234,7 @@ class TestLexiconProvider(TestCase):
 
 class TestLexiconProviderApplyScenarios(TestCase):
 
-    @mock.patch('lexicon.providers.gandi.Provider')
+    @patch('lexicon.providers.gandi.Provider')
     def setUp(self, mock_provider):
         self.zone = Zone("blodapels.in.", [])
         self.provider = LexiconProvider(id="unittests",
@@ -276,7 +274,7 @@ class TestLexiconProviderApplyScenarios(TestCase):
         self.provider_mock.delete_record.return_value = True
         self.provider_mock.create_record.return_value = True
 
-    @mock.patch('lexicon.providers.gandi.Provider')
+    @patch('lexicon.providers.gandi.Provider')
     def test_apply_create_delete(self, provider_mock):
         # Given
         provider_mock.return_value = self.provider_mock
@@ -297,50 +295,50 @@ class TestLexiconProviderApplyScenarios(TestCase):
         plan = Plan(ZONE, ZONE, changeset, True)
 
         expected_create_calls = [
-            mock.call(content='192.0.184.38',
-                      rtype='A',
-                      name='@.blodapels.in.'),
-            mock.call(content='10 '
-                              'spool.mail.example.com.',
-                      rtype='MX',
-                      name='@.blodapels.in.'),
-            mock.call(content='50 fb.mail.example.com.',
-                      rtype='MX',
-                      name='@.blodapels.in.'),
-            mock.call(content='v=spf1 include:_mailcus'
-                              't.example.com ?all',
-                      rtype='TXT',
-                      name='@.blodapels.in.'),
-            mock.call(content='0 0 0 .',
-                      rtype='SRV',
-                      name='_imap._tcp.blodapels.in.'),
-            mock.call(content='0 1 993 mail.example.com.',
-                      rtype='SRV',
-                      name='_imaps._tcp.blodapels.in.'),
-            mock.call(content='0 0 0 .',
-                      rtype='SRV',
-                      name='_pop3._tcp.blodapels.in.'),
-            mock.call(content='10 1 995 '
-                              'mail.example.com.',
-                      rtype='SRV',
-                      name='_pop3s._tcp.blodapels.in.'),
-            mock.call(content='0 1 465 mail.example.com.',
-                      rtype='SRV',
-                      name='_submission.'
-                           '_tcp.blodapels.in.'),
-            mock.call(content='webmail.example.com.',
-                      rtype='CNAME',
-                      name='webmail.blodapels.in.'),
-            mock.call(content='webredir.vip'
-                              '.example.com.',
-                      rtype='CNAME',
-                      name='www.blodapels.in.'),
-            mock.call(content='0 issue ";"',
-                      rtype='CAA',
-                      name='@.blodapels.in.'),
-            mock.call(content='0 issuewild "letsencrypt.org"',
-                      rtype='CAA',
-                      name='@.blodapels.in.'),
+            call(content='192.0.184.38',
+                 rtype='A',
+                 name='@.blodapels.in.'),
+            call(content='10 '
+                 'spool.mail.example.com.',
+                 rtype='MX',
+                 name='@.blodapels.in.'),
+            call(content='50 fb.mail.example.com.',
+                 rtype='MX',
+                 name='@.blodapels.in.'),
+            call(content='v=spf1 include:_mailcus'
+                 't.example.com ?all',
+                 rtype='TXT',
+                 name='@.blodapels.in.'),
+            call(content='0 0 0 .',
+                 rtype='SRV',
+                 name='_imap._tcp.blodapels.in.'),
+            call(content='0 1 993 mail.example.com.',
+                 rtype='SRV',
+                 name='_imaps._tcp.blodapels.in.'),
+            call(content='0 0 0 .',
+                 rtype='SRV',
+                 name='_pop3._tcp.blodapels.in.'),
+            call(content='10 1 995 '
+                 'mail.example.com.',
+                 rtype='SRV',
+                 name='_pop3s._tcp.blodapels.in.'),
+            call(content='0 1 465 mail.example.com.',
+                 rtype='SRV',
+                 name='_submission.'
+                 '_tcp.blodapels.in.'),
+            call(content='webmail.example.com.',
+                 rtype='CNAME',
+                 name='webmail.blodapels.in.'),
+            call(content='webredir.vip'
+                 '.example.com.',
+                 rtype='CNAME',
+                 name='www.blodapels.in.'),
+            call(content='0 issue ";"',
+                 rtype='CAA',
+                 name='@.blodapels.in.'),
+            call(content='0 issuewild "letsencrypt.org"',
+                 rtype='CAA',
+                 name='@.blodapels.in.'),
         ]
 
         # When
@@ -361,7 +359,7 @@ class TestLexiconProviderApplyScenarios(TestCase):
             name='unittest-del.blodapels.in.')
         self.provider_mock.update_record.assert_not_called()
 
-    @mock.patch('lexicon.providers.gandi.Provider')
+    @patch('lexicon.providers.gandi.Provider')
     def test__apply_many_to_one(self, provider_mock):
         # Given
         provider_mock.return_value = self.provider_mock
@@ -401,7 +399,7 @@ class TestLexiconProviderApplyScenarios(TestCase):
         self.provider_mock.list_records. \
             assert_called_once_with(None, None, None)
 
-    @mock.patch('lexicon.providers.gandi.Provider')
+    @patch('lexicon.providers.gandi.Provider')
     def test_apply_many_to_one_without_unique_ids(self, provider_mock):
         # Given
         provider_mock.return_value = self.provider_mock
@@ -425,23 +423,23 @@ class TestLexiconProviderApplyScenarios(TestCase):
                     changes=changes)
 
         expected_caslls_for_create = [
-            mock.call(content='192.168.1.3',
-                      rtype='A',
-                      name='test-many.blodapels.in.'),
-            mock.call(content='192.168.1.4',
-                      rtype='A',
-                      name='test-many.blodapels.in.'),
-            mock.call(content='192.168.7.7',
-                      rtype='A',
-                      name='test-many.blodapels.in.')]
+            call(content='192.168.1.3',
+                 rtype='A',
+                 name='test-many.blodapels.in.'),
+            call(content='192.168.1.4',
+                 rtype='A',
+                 name='test-many.blodapels.in.'),
+            call(content='192.168.7.7',
+                 rtype='A',
+                 name='test-many.blodapels.in.')]
 
         expected_calls_for_delete = [
-            mock.call(content='192.168.2.3',
-                      rtype='A',
-                      name='test-many.blodapels.in.'),
-            mock.call(content='192.168.2.4',
-                      rtype='A',
-                      name='test-many.blodapels.in.')]
+            call(content='192.168.2.3',
+                 rtype='A',
+                 name='test-many.blodapels.in.'),
+            call(content='192.168.2.4',
+                 rtype='A',
+                 name='test-many.blodapels.in.')]
 
         # When
         self.provider.populate(self.zone)
@@ -459,7 +457,7 @@ class TestLexiconProviderApplyScenarios(TestCase):
         self.assertEqual(self.provider_mock.delete_record.call_count, 2,
                          "Delete is called exactly twice")
 
-    @mock.patch('lexicon.providers.gandi.Provider')
+    @patch('lexicon.providers.gandi.Provider')
     def test_apply_update_mix(self, provider_mock):
         # given
         provider_mock.return_value = self.provider_mock
@@ -484,14 +482,14 @@ class TestLexiconProviderApplyScenarios(TestCase):
                     exists=True,
                     changes=changes)
 
-        expected_calls = [mock.call(identifier='747795',
-                                    content='192.168.1.3',
-                                    rtype='A',
-                                    name='test-many.blodapels.in.'),
-                          mock.call(identifier='747794',
-                                    content='192.168.1.4',
-                                    rtype='A',
-                                    name='test-many.blodapels.in.')]
+        expected_calls = [call(identifier='747795',
+                               content='192.168.1.3',
+                               rtype='A',
+                               name='test-many.blodapels.in.'),
+                          call(identifier='747794',
+                               content='192.168.1.4',
+                               rtype='A',
+                               name='test-many.blodapels.in.')]
 
         # When
         self.provider.populate(self.zone)
@@ -503,7 +501,7 @@ class TestLexiconProviderApplyScenarios(TestCase):
         self.provider_mock.create_record.assert_called_once_with(
             content='192.168.7.7', rtype='A', name='test-many.blodapels.in.')
 
-    @mock.patch('lexicon.providers.gandi.Provider')
+    @patch('lexicon.providers.gandi.Provider')
     def test_apply_update_fail(self, provider_mock):
         # Given
         record_to_update_existing = Record.new(ZONE, 'multi-value-record',
@@ -540,7 +538,7 @@ class TestLexiconProviderApplyScenarios(TestCase):
         with self.assertRaises(RecordUpdateError):
             self.provider._apply(plan)
 
-    @mock.patch('lexicon.providers.gandi.Provider')
+    @patch('lexicon.providers.gandi.Provider')
     def test_apply_create_delete_fail(self, provider_mock):
         # Given
         provider_mock.return_value = self.provider_mock
@@ -577,7 +575,7 @@ class TestLexiconProviderApplyScenarios(TestCase):
         with self.assertRaises(RecordDeleteError):
             self.provider._apply(plan)
 
-    @mock.patch('lexicon.providers.gandi.Provider')
+    @patch('lexicon.providers.gandi.Provider')
     def test_apply_create_error(self, provider_mock):
         # Given
         record_to_update_new = Record.new(
@@ -597,7 +595,7 @@ class TestLexiconProviderApplyScenarios(TestCase):
         with self.assertRaises(RecordCreateError):
             self.provider._apply(plan)
 
-    @mock.patch('lexicon.providers.gandi.Provider')
+    @patch('lexicon.providers.gandi.Provider')
     def test_apply_delete_error(self, provider_mock):
         # Given
         record_to_delete = Record.new(ZONE, 'multi-value-record',
