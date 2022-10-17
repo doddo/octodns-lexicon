@@ -51,15 +51,15 @@ ZONE = Zone("blodapels.in.", [])
 source = Mock()
 
 OCTODNS_DATA = [
-    Record.new(ZONE, '@', {'ttl': 10800, 'type': 'A',
+    Record.new(ZONE, '', {'ttl': 10800, 'type': 'A',
                            'values': ['192.0.184.38']}, source=source),
-    Record.new(ZONE, '@', {'ttl': 10800, 'type': 'MX',
+    Record.new(ZONE, '', {'ttl': 10800, 'type': 'MX',
                            'values': [{'priority': '10', 'exchange':
                                'spool.mail.example.com.'},
                                       {'priority': '50', 'exchange':
                                           'fb.mail.example.com.'}]},
                source=source),
-    Record.new(ZONE, '@', {'ttl': 10800, 'type': 'TXT',
+    Record.new(ZONE, '', {'ttl': 10800, 'type': 'TXT',
                            'values':
                                ['v=spf1 include:_mailcust.example.com ?all']},
                source=source),
@@ -88,7 +88,7 @@ OCTODNS_DATA = [
                {'type': 'SRV', 'ttl': 10800, 'values': [
                    {'priority': '0', 'weight': '1', 'port': '465',
                     'target': 'mail.example.com.'}]}, source=source),
-    Record.new(ZONE, '@',
+    Record.new(ZONE, '',
                {'type': 'CAA', 'ttl': 10800, 'values': [
                    {'flags': 0, 'tag': 'issue', 'value': ';'},
                    {'flags': 0, 'tag': 'issuewild',
@@ -138,8 +138,8 @@ class TestLexiconProvider(TestCase):
 
         zone = Zone("blodapels.in.", [])
 
-        expected_record = Record.new(ZONE, '@', {'ttl': 10800, 'type': 'A',
-                                                 'values': ['192.0.184.38']},
+        expected_record = Record.new(ZONE, '', {'ttl': 10800, 'type': 'A',
+                                                'values': ['192.0.184.38']},
                                      source=source)
 
         mock_provider.return_value.list_records.return_value =\
@@ -417,8 +417,7 @@ class TestLexiconProviderApplyScenarios(TestCase):
                                                  '192.168.1.5', '192.168.7.7']}
                                     )
         desired_zone.add_record(desired_record)
-        changes = {Update(existing=self.octo_record,
-                          new=desired_record)}
+        changes = [Update(existing=self.octo_record, new=desired_record)]
         plan = Plan(desired=desired_zone,
                     existing=self.zone,
                     exists=True,
@@ -476,8 +475,7 @@ class TestLexiconProviderApplyScenarios(TestCase):
                                     )
         desired_zone.add_record(desired_record)
 
-        changes = {Update(existing=self.octo_record,
-                          new=desired_record)}
+        changes = [Update(existing=self.octo_record, new=desired_record)]
 
         plan = Plan(desired=desired_zone,
                     existing=self.zone,
