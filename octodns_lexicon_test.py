@@ -50,16 +50,16 @@ source = Mock()
 
 OCTODNS_DATA = [
     Record.new(ZONE, '', {'ttl': 10800, 'type': 'A',
-                           'values': ['192.0.184.38']}, source=source),
+                          'values': ['192.0.184.38']}, source=source),
     Record.new(ZONE, '', {'ttl': 10800, 'type': 'MX',
-                           'values': [{'priority': '10', 'exchange':
-                               'spool.mail.example.com.'},
-                                      {'priority': '50', 'exchange':
-                                          'fb.mail.example.com.'}]},
+                          'values': [{'priority': '10', 'exchange':
+                              'spool.mail.example.com.'},
+                                     {'priority': '50', 'exchange':
+                                         'fb.mail.example.com.'}]},
                source=source),
     Record.new(ZONE, '', {'ttl': 10800, 'type': 'TXT',
-                           'values':
-                               ['v=spf1 include:_mailcust.example.com ?all']},
+                          'values':
+                              ['v=spf1 include:_mailcust.example.com ?all']},
                source=source),
     Record.new(ZONE, 'webmail', {'ttl': 10800, 'type': 'CNAME', 'value':
         'webmail.example.com.'}, source=source),
@@ -107,7 +107,7 @@ lexicon_config = {
 class TestLexiconProvider(TestCase):
 
     @patch('lexicon.providers.gandi.Provider.list_records',
-                return_value=iter(LEXICON_DATA))
+           return_value=iter(LEXICON_DATA))
     @patch('lexicon.providers.gandi.Provider.authenticate')
     def test_populate(self, mock_provider, mock_auth):
         # Given
@@ -140,7 +140,7 @@ class TestLexiconProvider(TestCase):
                                                 'values': ['192.0.184.38']},
                                      source=source)
 
-        mock_provider.return_value.list_records.return_value =\
+        mock_provider.return_value.list_records.return_value = \
             iter(lexicon_data)
 
         # When
@@ -151,16 +151,16 @@ class TestLexiconProvider(TestCase):
                          "relative names from list are handled correctly")
 
     @patch('lexicon.providers.gandi.Provider.list_records',
-                return_value=iter([{'type': 'NS',
-                         'name': 'subzone',
-                         'ttl': 10800,
-                         'content': 'subzone.example.com',
-                         'id': '@'},
-                        {'type': 'NS',
-                         'name': 'subzone',
-                         'ttl': 10800,
-                         'content': 'relative',
-                         'id': '@'}]))
+           return_value=iter([{'type': 'NS',
+                               'name': 'subzone',
+                               'ttl': 10800,
+                               'content': 'subzone.example.com',
+                               'id': '@'},
+                              {'type': 'NS',
+                               'name': 'subzone',
+                               'ttl': 10800,
+                               'content': 'relative',
+                               'id': '@'}]))
     @patch('lexicon.providers.gandi.Provider.authenticate')
     def test_populate_non_fqdn_like_values(self, *_):
         # Given
@@ -182,19 +182,41 @@ class TestLexiconProvider(TestCase):
             provider = LexiconProvider(id="unittests", lexicon_config={})
             provider._create_client("example.com")
 
+    @patch('lexicon.providers.gandi.Provider.list_records',
+           return_value=iter([{'type': 'TXT',
+                               'name': 'semicolon',
+                               'ttl': 600,
+                               'content': 'there is a semicolon; here',
+                               'id': '@'}]))
+    @patch('lexicon.providers.gandi.Provider.authenticate')
+    def test_update_escape_the_semicolon_on_txt(self, *_):
+        # Given
+        provider = LexiconProvider(id="unittests",
+                                   lexicon_config=lexicon_config)
+        zone = Zone("blodapels.in.", [])
+
+        wanted_record_value = {r'there is a semicolon\; here'}
+        # When
+        provider.populate(zone)
+
+        # then
+        self.assertEqual(set(zone.records.pop().values),
+                         wanted_record_value,
+                         "Semicolon in TXT records are escaped")
+
     def test_octodns_record_compat(self):
         # Given
         remembered_ids = RememberedIds()
         zone_a = Zone("zone-a.dev.", [])
         zone_b = Zone("zone-b.dev.", [])
         record_a = Record.new(zone_a, 'unittest',
-            {'ttl': 30, 'type': 'CNAME', 'value':
-                'www.example.com.'},
-            source=None)
+                              {'ttl': 30, 'type': 'CNAME', 'value':
+                                  'www.example.com.'},
+                              source=None)
         record_b = Record.new(zone_b, 'unittest',
-            {'ttl': 30, 'type': 'CNAME', 'value':
-                'www.example.com.'},
-            source=None)
+                              {'ttl': 30, 'type': 'CNAME', 'value':
+                                  'www.example.com.'},
+                              source=None)
 
         # When
         remembered_ids.remember(record_a, "www.example.com", '@')
@@ -299,14 +321,14 @@ class TestLexiconProviderApplyScenarios(TestCase):
                  rtype='A',
                  name='@.blodapels.in.'),
             call(content='10 '
-                 'spool.mail.example.com.',
+                         'spool.mail.example.com.',
                  rtype='MX',
                  name='@.blodapels.in.'),
             call(content='50 fb.mail.example.com.',
                  rtype='MX',
                  name='@.blodapels.in.'),
             call(content='v=spf1 include:_mailcus'
-                 't.example.com ?all',
+                         't.example.com ?all',
                  rtype='TXT',
                  name='@.blodapels.in.'),
             call(content='0 0 0 .',
@@ -319,18 +341,18 @@ class TestLexiconProviderApplyScenarios(TestCase):
                  rtype='SRV',
                  name='_pop3._tcp.blodapels.in.'),
             call(content='10 1 995 '
-                 'mail.example.com.',
+                         'mail.example.com.',
                  rtype='SRV',
                  name='_pop3s._tcp.blodapels.in.'),
             call(content='0 1 465 mail.example.com.',
                  rtype='SRV',
                  name='_submission.'
-                 '_tcp.blodapels.in.'),
+                      '_tcp.blodapels.in.'),
             call(content='webmail.example.com.',
                  rtype='CNAME',
                  name='webmail.blodapels.in.'),
             call(content='webredir.vip'
-                 '.example.com.',
+                         '.example.com.',
                  rtype='CNAME',
                  name='www.blodapels.in.'),
             call(content='0 issue ";"',
@@ -364,7 +386,7 @@ class TestLexiconProviderApplyScenarios(TestCase):
         # Given
         provider_mock.return_value = self.provider_mock
 
-        self.provider_mock.list_records.return_value =\
+        self.provider_mock.list_records.return_value = \
             iter(self.lexicon_records_one_octo_record)
 
         octo_record = self.octo_record
@@ -404,7 +426,7 @@ class TestLexiconProviderApplyScenarios(TestCase):
         # Given
         provider_mock.return_value = self.provider_mock
 
-        self.provider_mock.list_records.return_value =\
+        self.provider_mock.list_records.return_value = \
             iter(self.lexicon_records_non_unique_ids)
 
         desired_zone = Zone("blodapels.in.", [])
@@ -461,7 +483,7 @@ class TestLexiconProviderApplyScenarios(TestCase):
         # given
         provider_mock.return_value = self.provider_mock
 
-        self.provider_mock.list_records.return_value =\
+        self.provider_mock.list_records.return_value = \
             iter(self.lexicon_records_one_octo_record)
 
         desired_zone = Zone("blodapels.in.", [])
@@ -524,7 +546,7 @@ class TestLexiconProviderApplyScenarios(TestCase):
 
         provider_mock.return_value = self.provider_mock
         self.provider_mock.update_record.return_value = False
-        self.provider_mock.list_records.return_value =\
+        self.provider_mock.list_records.return_value = \
             iter(lexicon_records)
 
         plan = Plan(ZONE, ZONE, changeset, True)
