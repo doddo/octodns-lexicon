@@ -24,11 +24,10 @@ setuptools.setup(
          'Topic :: System :: Systems Administration',
          'Topic :: Utilities',
          "License :: OSI Approved :: MIT License",
-         'Programming Language :: Python :: 2.7',
          'Programming Language :: Python :: 3',
     ],
     tests_require=["pytest"],
     install_requires=[
-        'octodns>=0.9.10',
+        'octodns>=0.9.21',
         'dns-lexicon>=3.3.23']
 )
