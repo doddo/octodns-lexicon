@@ -152,7 +152,7 @@ class LexiconProvider(BaseProvider):
                     else:
                         record_name = record_by_name
 
-                    record = Record.new(zone, record_name, data, source=self)
+                    record = Record.new(zone, record_name, data, source=self, lenient=lenient)
 
                     # Some lexicon operations, specifically 'update',
                     # requires the 'identifier' to be used.
